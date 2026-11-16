@@ -1,0 +1,73 @@
+# Layered Task System — Gemma 4 Developer Agent
+# Bundle root config. Mirrors the "Layered Workflow" diagram v2 (2026-11-12):
+# 0 Intake -> 1 Agent -> 2 Investigate -> 2.5 Repository Thesis ->
+# 3 Change and Check (3.1 gate -> 3.5 plan -> edit/check loop) ->
+# 4 Submit Patch -> 5 Evaluation, evidence loop back to 2.5.
+
+name: layered-task-agent
+version: 0.1.0
+description: >
+  A thesis-first coding agent. It investigates the repository before forming
+  a Repository Thesis, gates editing on an access + capability check, plans
+  every edit against a testable hypothesis, and submits a unified diff.
+  Designed for token efficiency: evidence first, narrow reads, plan before
+  edits, check early and check narrow.
+
+model:
+  base: gemma-4
+  sampling: configs/sampling.yaml
+  adapters:
+    main_lora: adapters/main_lora   # placeholder — trained adapter drops in here
+    tool_lora: adapters/tool_lora   # placeholder — trained adapter drops in here
+
+prompts:
+  system: prompts/system.md
+  analyzer: prompts/analyzer.md
+
+sub_agents:
+  - name: code_analyzer
+    config: sub_agents/code_analyzer.yaml
+
+skills:
+  - skills/repo_navigation
+
+workflow:
+  stages:
+    - id: 0
+      name: task_intake
+      rule: Read the issue description against the frozen repository snapshot. No exploration yet.
+    - id: 2
+      name: investigate
+      rule: Read files, search code, understand the issue. NO EDITS in this stage.
+    - id: 2.5
+      name: repository_thesis
+      owner: code_analyzer
+      rule: >
+        State the project, language/stack, module map, dependencies and tests.
+        Record evidence and unknowns. The thesis is grounded in THIS task's
+        repository only, and is updated whenever new evidence arrives.
+    - id: 3.1
+      name: access_capability_gate
+      gate: true
+      rule: >
+        Confirm which files are accessible, which harness tools exist, and the
+        offline limits. Editing is forbidden until this gate passes.
+    - id: 3.5
+      name: pre_edit_plan
+      rule: >
+        Restate expected behavior, form a testable hypothesis, choose target
+        files and the checks that will verify the fix. No plan, no edit.
+    - id: 3
+      name: change_and_check
+      loop: [edit_code, run_sandbox_checks, inspect_results, revise]
+      rule: Iterate the loop; feed new evidence back into the thesis (2.5).
+    - id: 4
+      name: submit_patch
+      rule: Submit code changes as a single unified diff.
+    - id: 5
+      name: evaluation
+      rule: Hidden task tests decide PASS/FAIL. A FAIL updates the thesis evidence, not the story.
+
+limits:
+  offline: true
+  edits_require: [thesis_recorded, gate_passed, plan_recorded]
