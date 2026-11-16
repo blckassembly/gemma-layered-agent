@@ -1,0 +1,16 @@
+# Sampling config — tuned for deterministic, low-waste generation.
+# A coding agent graded by hidden tests gains nothing from creative
+# variance; it gains from the same right answer every time.
+
+temperature: 0.2
+top_p: 0.9
+top_k: 40
+max_output_tokens: 8192
+
+# Stage overrides: the thesis stage runs colder than the edit loop,
+# because a stable evidence base matters more than phrasing variety.
+stages:
+  repository_thesis:
+    temperature: 0.1
+  change_and_check:
+    temperature: 0.2
