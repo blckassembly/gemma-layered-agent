@@ -1,0 +1,22 @@
+# Sub-agent: code_analyzer
+# Owns Stage 2 (Investigate) and Stage 2.5 (Repository Thesis).
+# Read-only by design: this sub-agent can never edit code, so the thesis
+# cannot be contaminated by a fix already in progress.
+
+name: code_analyzer
+role: repository_investigator
+prompt: prompts/analyzer.md
+
+permissions:
+  read_files: true
+  search_code: true
+  edit_files: false
+  run_checks: false
+  submit_patch: false
+
+outputs:
+  - repository_thesis   # project/stack, module map, tests, evidence, unknowns
+
+invoked_at:
+  - stage_2_investigate
+  - stage_2_5_thesis_update   # re-invoked whenever the edit loop finds new evidence
